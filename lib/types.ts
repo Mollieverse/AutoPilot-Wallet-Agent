@@ -1,49 +1,41 @@
-// ─── Shared Types ────────────────────────────────────────────────────────────
+export type ConditionType = 'price_drops' | 'price_rises';
+export type Action        = 'buy' | 'sell' | 'alert';
+export type AgentStatus   = 'idle' | 'monitoring' | 'triggered' | 'paused' | 'error';
 
-export type Condition =
-  | 'price_drop_5'
-  | 'price_drop_10'
-  | 'price_rise_5'
-  | 'price_rise_10'
-  | 'always';
-
-export type Action =
-  | 'buy_sol'
-  | 'sell_sol'
-  | 'send_alert';
-
-export type AgentStatus =
-  | 'idle'
-  | 'monitoring'
-  | 'triggered'
-  | 'paused'
-  | 'error';
+export interface SolanaToken {
+  id:     string;  // CoinGecko ID e.g. 'solana'
+  symbol: string;  // e.g. 'SOL'
+  name:   string;  // e.g. 'Solana'
+}
 
 export interface AgentRule {
-  id:         string;
-  name:       string;
-  condition:  Condition;
-  action:     Action;
-  amount:     number;         // SOL amount
-  status:     AgentStatus;
-  createdAt:  Date;
-  triggeredAt?: Date;
+  id:            string;
+  name:          string;
+  token:         SolanaToken;
+  conditionType: ConditionType;
+  conditionPct:  number;       // e.g. 5 = "drops 5%"
+  action:        Action;
+  amount:        number;
+  status:        AgentStatus;
+  createdAt:     Date;
+  triggeredAt?:  Date;
 }
 
 export interface Execution {
   id:          string;
   agentId:     string;
   agentName:   string;
+  tokenSymbol: string;
   action:      Action;
   amount:      number;
   timestamp:   Date;
   txHash:      string | null;
   status:      'success' | 'failed' | 'pending';
-  price:       number;         // SOL price at execution
+  price:       number;
 }
 
 export interface PriceData {
-  current:    number;
-  change24h:  number;         // percentage
-  history:    number[];       // last N prices for sparkline
+  current:   number;
+  change24h: number;
+  history:   number[];
 }
