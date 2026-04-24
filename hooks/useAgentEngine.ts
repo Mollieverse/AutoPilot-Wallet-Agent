@@ -27,15 +27,18 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
   const agentsRef           = useRef(agents);
   const mountedRef          = useRef(true);
   const onBalanceRefreshRef = useRef(onBalanceRefresh);
-  // tokenId -> { current, change24h }
+  // tokenId/mint -> { current, change24h }
   const tokenPricesRef      = useRef<Record<string, { current: number; change24h: number }>>({});
 
   useEffect(() => { agentsRef.current           = agents;           }, [agents]);
   useEffect(() => { onBalanceRefreshRef.current = onBalanceRefresh; }, [onBalanceRefresh]);
 
-  // Keep SOL price synced from prop
+  // Keep SOL price synced
   useEffect(() => {
-    tokenPricesRef.current['solana'] = { current: price.current, change24h: price.change24h };
+    tokenPricesRef.current['solana'] = {
+      current:   price.current,
+      change24h: price.change24h,
+    };
   }, [price]);
 
   useEffect(() => {
@@ -43,9 +46,9 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Fetch prices for all tokens in agents (non-SOL or all)
+  // Fetch prices for all tokens used by agents (supports any mint)
   const fetchTokenPrices = useCallback(async () => {
-    const ids = [...new Set(agentsRef.current.map(a => a.token.id))];
+    const ids = [...new Set(agentsRef.current.map(a => a.token.mint ?? a.token.id))];
     if (ids.length === 0) return;
     try {
       const res  = await fetch(`/api/token-prices?ids=${ids.join(',')}`);
@@ -56,25 +59,27 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
     } catch { /* keep last */ }
   }, []);
 
-  // Refresh token prices every 30s
   useEffect(() => {
     fetchTokenPrices();
     const id = setInterval(fetchTokenPrices, 30_000);
     return () => clearInterval(id);
   }, [fetchTokenPrices]);
 
-  // Execute a single agent
+  // Execute agent
   const executeAgent = useCallback(async (agent: AgentRule) => {
     if (!publicKey || !connected || processingRef.current) return;
     processingRef.current = true;
     if (mountedRef.current) setProcessing(true);
 
     setAgents(prev =>
-      prev.map(a => a.id === agent.id ? { ...a, status: 'triggered', triggeredAt: new Date() } : a),
+      prev.map(a => a.id === agent.id
+        ? { ...a, status: 'triggered', triggeredAt: new Date() }
+        : a),
     );
 
-    const execId = nanoId();
-    const tokenPrice = tokenPricesRef.current[agent.token.id]?.current ?? 0;
+    const execId     = nanoId();
+    const tokenKey   = agent.token.mint ?? agent.token.id;
+    const tokenPrice = tokenPricesRef.current[tokenKey]?.current ?? 0;
 
     setExecutions(prev => [{
       id:          execId,
@@ -93,24 +98,32 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
       if (agent.action === 'alert') {
         await new Promise(r => setTimeout(r, 800));
         if (mountedRef.current)
-          setExecutions(prev => prev.map(e => e.id === execId ? { ...e, status: 'success', txHash: 'alert-only' } : e));
+          setExecutions(prev =>
+            prev.map(e => e.id === execId ? { ...e, status: 'success', txHash: 'alert-only' } : e),
+          );
       } else {
         const tx = buildDemoTransaction(publicKey);
         const { blockhash } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
-        tx.feePayer        = publicKey;
+        tx.recentBlockhash  = blockhash;
+        tx.feePayer         = publicKey;
         const sig = await sendTransaction(tx, connection);
         await connection.confirmTransaction(sig, 'confirmed');
         if (mountedRef.current) {
-          setExecutions(prev => prev.map(e => e.id === execId ? { ...e, status: 'success', txHash: sig } : e));
+          setExecutions(prev =>
+            prev.map(e => e.id === execId ? { ...e, status: 'success', txHash: sig } : e),
+          );
           onBalanceRefreshRef.current();
         }
       }
     } catch (err) {
       console.error('Agent error:', err instanceof Error ? err.message : err);
       if (mountedRef.current) {
-        setExecutions(prev => prev.map(e => e.id === execId ? { ...e, status: 'failed' } : e));
-        setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, status: 'error' } : a));
+        setExecutions(prev =>
+          prev.map(e => e.id === execId ? { ...e, status: 'failed' } : e),
+        );
+        setAgents(prev =>
+          prev.map(a => a.id === agent.id ? { ...a, status: 'error' } : a),
+        );
       }
     } finally {
       setTimeout(() => {
@@ -127,13 +140,14 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
     }
   }, [publicKey, connected, connection, sendTransaction]);
 
-  // Monitoring loop — reads from refs, never re-subscribes
+  // Monitoring loop
   useEffect(() => {
     const id = setInterval(() => {
       if (processingRef.current) return;
       agentsRef.current.forEach(agent => {
         if (agent.status !== 'monitoring') return;
-        const tp = tokenPricesRef.current[agent.token.id];
+        const tokenKey = agent.token.mint ?? agent.token.id;
+        const tp       = tokenPricesRef.current[tokenKey];
         if (!tp) return;
         if (isConditionMet(agent.conditionType, agent.conditionPct, tp.change24h)) {
           executeAgent(agent);
@@ -147,18 +161,29 @@ export function useAgentEngine({ price, onBalanceRefresh }: Props) {
     (rule: Omit<AgentRule, 'id' | 'createdAt' | 'status'>) => {
       const a: AgentRule = { ...rule, id: nanoId(), status: 'monitoring', createdAt: new Date() };
       setAgents(prev => [a, ...prev]);
-      // Immediately fetch price for the new token
       fetchTokenPrices();
       return a;
     }, [fetchTokenPrices],
   );
 
-  const removeAgent = useCallback((id: string) => setAgents(p => p.filter(a => a.id !== id)), []);
-  const togglePause = useCallback((id: string) =>
-    setAgents(p => p.map(a =>
-      a.id === id ? { ...a, status: a.status === 'paused' ? 'monitoring' : 'paused' } : a,
-    )), []);
-  const triggerNow = useCallback((agent: AgentRule) => executeAgent(agent), [executeAgent]);
+  const removeAgent = useCallback(
+    (id: string) => setAgents(p => p.filter(a => a.id !== id)), [],
+  );
 
-  return { agents, executions, processing, addAgent, removeAgent, togglePause, triggerNow };
-                 }
+  const togglePause = useCallback(
+    (id: string) => setAgents(p => p.map(a =>
+      a.id === id
+        ? { ...a, status: a.status === 'paused' ? 'monitoring' : 'paused' }
+        : a,
+    )), [],
+  );
+
+  const triggerNow = useCallback(
+    (agent: AgentRule) => executeAgent(agent), [executeAgent],
+  );
+
+  return {
+    agents, executions, processing,
+    addAgent, removeAgent, togglePause, triggerNow,
+  };
+      }
