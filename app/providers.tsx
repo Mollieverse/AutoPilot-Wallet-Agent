@@ -21,8 +21,13 @@ export function SolanaProviders({ children }: { children: React.ReactNode }) {
     <CP endpoint={SOLANA_RPC_ENDPOINT}>
       <WP
         wallets={wallets}
-        autoConnect={false}
-        onError={(error: Error) => console.warn('Wallet error:', error.message)}
+        autoConnect={true}
+        onError={(error: Error) => {
+          // Suppress "user rejected" errors — normal UX
+          if (!error.message?.includes('User rejected')) {
+            console.warn('Wallet error:', error.message);
+          }
+        }}
       >
         <WMP>
           {children}
