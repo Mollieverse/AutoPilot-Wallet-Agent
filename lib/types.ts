@@ -3,9 +3,12 @@ export type Action        = 'buy' | 'sell' | 'alert';
 export type AgentStatus   = 'idle' | 'monitoring' | 'triggered' | 'paused' | 'error';
 
 export interface SolanaToken {
-  id:     string;  // CoinGecko ID e.g. 'solana'
-  symbol: string;  // e.g. 'SOL'
-  name:   string;  // e.g. 'Solana'
+  id:      string;   // CoinGecko ID or mint address for on-chain tokens
+  symbol:  string;
+  name:    string;
+  mint?:   string;   // SPL mint address (for wallet/meme tokens)
+  logo?:   string;   // token logo URI
+  balance?: number;  // wallet balance if from user's wallet
 }
 
 export interface AgentRule {
@@ -13,7 +16,7 @@ export interface AgentRule {
   name:          string;
   token:         SolanaToken;
   conditionType: ConditionType;
-  conditionPct:  number;       // e.g. 5 = "drops 5%"
+  conditionPct:  number;
   action:        Action;
   amount:        number;
   status:        AgentStatus;
@@ -38,4 +41,13 @@ export interface PriceData {
   current:   number;
   change24h: number;
   history:   number[];
+}
+
+export interface WalletToken {
+  mint:    string;
+  symbol:  string;
+  name:    string;
+  balance: number;
+  logo?:   string;
+  price?:  number;
 }
