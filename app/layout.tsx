@@ -3,19 +3,26 @@ import './globals.css';
 import { SolanaProviders } from './providers';
 
 export const metadata: Metadata = {
-  title:       'AutoPilot Wallet Agent',
-  description: 'AI-powered Solana wallet automation',
-  viewport:    'width=device-width, initial-scale=1, maximum-scale=1',
+  title:       'HELM — Navigate Solana DeFi Automatically',
+  description: 'Non-custodial intent execution on Solana. Set conditions. HELM executes real Jupiter swaps automatically. Your keys never leave Phantom.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className="dark">
       <head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
