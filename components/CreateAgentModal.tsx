@@ -1,6 +1,10 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
-import { X, Bot, Zap, Search, TrendingDown, TrendingUp, ChevronDown, Wallet, Star } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import {
+  X, Bot, Zap, Search,
+  TrendingDown, TrendingUp,
+  ChevronDown, Wallet, Star,
+} from 'lucide-react';
 import { ConditionType, Action, SolanaToken } from '@/lib/types';
 import { SOLANA_TOKENS } from '@/lib/constants';
 import { useWalletTokens } from '@/hooks/useWalletTokens';
@@ -38,6 +42,49 @@ function fmtBalance(b: number): string {
   return b.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
+// ─── Token logo with Jupiter CDN fallback ────────────────────────────────────
+function TokenLogo({
+  logo,
+  symbol,
+  mint,
+  size = 'md',
+}: {
+  logo?:  string;
+  symbol: string;
+  mint?:  string;
+  size?:  'sm' | 'md' | 'lg';
+}) {
+  const [failed, setFailed] = useState(false);
+
+  const sizeClass =
+    size === 'lg' ? 'w-10 h-10 rounded-xl text-sm' :
+    size === 'md' ? 'w-7  h-7  rounded-full text-xs' :
+                   'w-5  h-5  rounded-full text-[10px]';
+
+  const jupiterUrl = mint ? `https://img.jup.ag/tokens/${mint}` : null;
+  const src        = !failed ? (logo || jupiterUrl) : jupiterUrl;
+
+  if (src && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={symbol}
+        onError={() => setFailed(true)}
+        className={`${sizeClass} object-cover flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${sizeClass} bg-gradient-to-br from-primary/30
+                     to-secondary/30 flex items-center justify-center
+                     font-bold font-mono flex-shrink-0`}>
+      {symbol.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
 export function CreateAgentModal({ onClose, onCreate }: Props) {
   const { tokens: walletTokens, loading: walletLoading } = useWalletTokens();
 
@@ -66,7 +113,6 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
     [walletTokens],
   );
 
-  // Filtered popular tokens
   const filteredPopular = useMemo(() =>
     SOLANA_TOKENS.filter(t =>
       t.symbol.toLowerCase().includes(tokenSearch.toLowerCase()) ||
@@ -75,7 +121,6 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
     [tokenSearch],
   );
 
-  // Filtered wallet tokens
   const filteredWallet = useMemo(() =>
     walletAsSolanaTokens.filter(t =>
       t.symbol.toLowerCase().includes(tokenSearch.toLowerCase()) ||
@@ -84,13 +129,6 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
     ),
     [walletAsSolanaTokens, tokenSearch],
   );
-
-  // Switch to wallet tab automatically if user has wallet tokens
-  useEffect(() => {
-    if (walletTokens.length > 0 && activeTab === 'popular') {
-      // Don't auto-switch, let user choose
-    }
-  }, [walletTokens, activeTab]);
 
   const handleSelectToken = (t: SolanaToken) => {
     setSelectedToken(t);
@@ -113,70 +151,66 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
     onClose();
   };
 
-  const TokenAvatar = ({ token, size = 'sm' }: { token: SolanaToken; size?: 'sm' | 'md' }) => {
-    const cls = size === 'md'
-      ? 'w-10 h-10 text-sm'
-      : 'w-7 h-7 text-xs';
-
-    if (token.logo) {
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={token.logo}
-          alt={token.symbol}
-          className={`${cls} rounded-full object-cover flex-shrink-0`}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-      );
-    }
-    return (
-      <div className={`${cls} rounded-full bg-gradient-to-br from-primary/30 to-secondary/30
-                       flex items-center justify-center font-bold font-mono flex-shrink-0`}>
-        {token.symbol.slice(0, 2).toUpperCase()}
-      </div>
-    );
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center
+                    justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <div className="relative w-full sm:w-[500px] bg-card border border-border rounded-t-2xl
-                      sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+      <div className="relative w-full sm:w-[500px] bg-card border border-border
+                      rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden
+                      max-h-[92vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between p-5 border-b
+                        border-border flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center
+                            justify-center">
               <Bot className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="font-bold text-base">Create Agent</h2>
-              <p className="text-xs text-muted">Any Solana token • Meme coins supported</p>
+              <p className="text-xs text-muted">Any Solana token · Meme coins supported</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-card-2 rounded-lg text-muted transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-card-2 rounded-lg text-muted transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable body */}
+        {/* Body */}
         <div className="overflow-y-auto p-5 space-y-4 flex-1">
 
-          {/* ── Token selector ── */}
+          {/* Token selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Token</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Token
+            </label>
             <div className="relative">
               <button
                 onClick={() => setShowTokenList(o => !o)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg
-                           bg-card-2 border border-border hover:border-primary/50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2.5
+                           rounded-lg bg-card-2 border border-border
+                           hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <TokenAvatar token={selectedToken} />
+                  <TokenLogo
+                    logo={selectedToken.logo}
+                    symbol={selectedToken.symbol}
+                    mint={selectedToken.mint}
+                    size="md"
+                  />
                   <div className="text-left">
                     <p className="text-sm font-semibold">{selectedToken.symbol}</p>
-                    <p className="text-xs text-muted truncate max-w-[200px]">{selectedToken.name}</p>
+                    <p className="text-xs text-muted truncate max-w-[200px]">
+                      {selectedToken.name}
+                    </p>
                   </div>
                   {selectedToken.balance != null && (
                     <span className="ml-1 text-xs text-accent font-mono">
@@ -184,22 +218,26 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                     </span>
                   )}
                 </div>
-                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${showTokenList ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-muted transition-transform
+                  ${showTokenList ? 'rotate-180' : ''}`} />
               </button>
 
               {showTokenList && (
-                <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-card border border-border
-                                rounded-xl shadow-xl overflow-hidden">
+                <div className="absolute top-full left-0 right-0 z-10 mt-1
+                                bg-card border border-border rounded-xl shadow-xl
+                                overflow-hidden">
                   {/* Search */}
                   <div className="p-2 border-b border-border">
-                    <div className="flex items-center gap-2 px-2 py-1.5 bg-card-2 rounded-lg">
+                    <div className="flex items-center gap-2 px-2 py-1.5
+                                    bg-card-2 rounded-lg">
                       <Search className="w-3.5 h-3.5 text-muted flex-shrink-0" />
                       <input
                         autoFocus
                         value={tokenSearch}
                         onChange={e => setTokenSearch(e.target.value)}
                         placeholder="Search name, symbol or paste mint..."
-                        className="bg-transparent text-sm outline-none flex-1 placeholder-muted/50"
+                        className="bg-transparent text-sm outline-none flex-1
+                                   placeholder-muted/50"
                       />
                     </div>
                   </div>
@@ -208,19 +246,27 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                   <div className="flex border-b border-border">
                     <button
                       onClick={() => setActiveTab('popular')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors
-                        ${activeTab === 'popular' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted hover:text-text'}`}
+                      className={`flex-1 flex items-center justify-center gap-1.5
+                                  py-2.5 text-xs font-semibold transition-colors
+                        ${activeTab === 'popular'
+                          ? 'text-primary border-b-2 border-primary bg-primary/5'
+                          : 'text-muted hover:text-text'}`}
                     >
                       <Star className="w-3 h-3" />
                       Popular ({SOLANA_TOKENS.length})
                     </button>
                     <button
                       onClick={() => setActiveTab('wallet')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors
-                        ${activeTab === 'wallet' ? 'text-accent border-b-2 border-accent bg-accent/5' : 'text-muted hover:text-text'}`}
+                      className={`flex-1 flex items-center justify-center gap-1.5
+                                  py-2.5 text-xs font-semibold transition-colors
+                        ${activeTab === 'wallet'
+                          ? 'text-accent border-b-2 border-accent bg-accent/5'
+                          : 'text-muted hover:text-text'}`}
                     >
                       <Wallet className="w-3 h-3" />
-                      My Wallet {walletTokens.length > 0 ? `(${walletTokens.length})` : ''}
+                      My Wallet {walletTokens.length > 0
+                        ? `(${walletTokens.length})`
+                        : ''}
                     </button>
                   </div>
 
@@ -228,35 +274,47 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                   <div className="max-h-56 overflow-y-auto">
                     {activeTab === 'popular' ? (
                       filteredPopular.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-muted">No tokens found</div>
+                        <div className="p-4 text-center text-xs text-muted">
+                          No tokens found
+                        </div>
                       ) : filteredPopular.map(t => (
                         <button
                           key={t.id}
                           onClick={() => handleSelectToken(t)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-card-2
-                                     transition-colors text-left
-                                     ${selectedToken.id === t.id ? 'bg-primary/10' : ''}`}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5
+                                      hover:bg-card-2 transition-colors text-left
+                            ${selectedToken.id === t.id ? 'bg-primary/10' : ''}`}
                         >
-                          <TokenAvatar token={t} />
+                          <TokenLogo
+                            logo={t.logo}
+                            symbol={t.symbol}
+                            mint={t.mint}
+                            size="md"
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold">{t.symbol}</p>
                             <p className="text-xs text-muted truncate">{t.name}</p>
                           </div>
                           {selectedToken.id === t.id && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                           )}
                         </button>
                       ))
                     ) : walletLoading ? (
                       <div className="p-6 text-center">
-                        <div className="w-5 h-5 border-2 border-primary border-t-transparent
-                                        rounded-full animate-spin mx-auto mb-2" />
-                        <p className="text-xs text-muted">Loading your tokens...</p>
+                        <div className="w-5 h-5 border-2 border-primary
+                                        border-t-transparent rounded-full
+                                        animate-spin mx-auto mb-2" />
+                        <p className="text-xs text-muted">
+                          Loading your tokens...
+                        </p>
                       </div>
                     ) : filteredWallet.length === 0 ? (
                       <div className="p-6 text-center">
                         <Wallet className="w-8 h-8 text-muted/40 mx-auto mb-2" />
-                        <p className="text-xs text-muted font-semibold mb-1">No tokens found</p>
+                        <p className="text-xs text-muted font-semibold mb-1">
+                          No tokens found
+                        </p>
                         <p className="text-xs text-muted/60">
                           {walletTokens.length === 0
                             ? 'Your wallet has no SPL tokens yet'
@@ -264,25 +322,30 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                         </p>
                       </div>
                     ) : filteredWallet.map(t => {
-                      const walletT = walletTokens.find(w => w.mint === t.mint);
-                      const usdVal  = walletT?.balance && walletT?.price
-                        ? (walletT.balance * walletT.price)
+                      const wt     = walletTokens.find(w => w.mint === t.mint);
+                      const usdVal = wt?.balance && wt?.price
+                        ? wt.balance * wt.price
                         : null;
                       return (
                         <button
                           key={t.id}
                           onClick={() => handleSelectToken(t)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-card-2
-                                     transition-colors text-left
-                                     ${selectedToken.id === t.id ? 'bg-accent/10' : ''}`}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5
+                                      hover:bg-card-2 transition-colors text-left
+                            ${selectedToken.id === t.id ? 'bg-accent/10' : ''}`}
                         >
-                          <TokenAvatar token={t} />
+                          <TokenLogo
+                            logo={t.logo}
+                            symbol={t.symbol}
+                            mint={t.mint}
+                            size="md"
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-semibold">{t.symbol}</p>
-                              {/* Meme badge for unknown tokens */}
                               {t.symbol.includes('...') && (
-                                <span className="text-[9px] px-1 py-0.5 rounded bg-warning/20 text-warning font-bold">
+                                <span className="text-[9px] px-1 py-0.5 rounded
+                                                 bg-warning/20 text-warning font-bold">
                                   DEGEN
                                 </span>
                               )}
@@ -290,9 +353,9 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                             <p className="text-xs text-muted truncate">{t.name}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            {walletT?.balance != null && (
+                            {wt?.balance != null && (
                               <p className="text-xs font-mono text-accent">
-                                {fmtBalance(walletT.balance)}
+                                {fmtBalance(wt.balance)}
                               </p>
                             )}
                             {usdVal != null && (
@@ -302,7 +365,8 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
                             )}
                           </div>
                           {selectedToken.id === t.id && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent
+                                             flex-shrink-0" />
                           )}
                         </button>
                       );
@@ -313,57 +377,76 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
             </div>
           </div>
 
-          {/* ── Condition ── */}
+          {/* Condition */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider">IF Condition</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+              IF Condition
+            </label>
             <div className="grid grid-cols-2 gap-2 mb-2">
               {([
-                { val: 'price_drops', label: 'Price Drops', Icon: TrendingDown, color: 'border-danger/50 bg-danger/10 text-danger' },
-                { val: 'price_rises', label: 'Price Rises', Icon: TrendingUp,   color: 'border-accent/50 bg-accent/10 text-accent' },
+                {
+                  val:   'price_drops',
+                  label: 'Price Drops',
+                  Icon:  TrendingDown,
+                  color: 'border-danger/50 bg-danger/10 text-danger',
+                },
+                {
+                  val:   'price_rises',
+                  label: 'Price Rises',
+                  Icon:  TrendingUp,
+                  color: 'border-accent/50 bg-accent/10 text-accent',
+                },
               ] as const).map(({ val, label, Icon, color }) => (
                 <button
                   key={val}
                   onClick={() => setConditionType(val)}
-                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border
-                             text-sm font-semibold transition-all
-                             ${conditionType === val
-                               ? color
-                               : 'border-border bg-card-2 text-muted hover:border-border/80'}`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5
+                             rounded-lg border text-sm font-semibold transition-all
+                    ${conditionType === val
+                      ? color
+                      : 'border-border bg-card-2 text-muted hover:border-border/80'}`}
                 >
                   <Icon className="w-4 h-4" />
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-card-2 border border-border">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg
+                            bg-card-2 border border-border">
               <span className="text-sm text-muted flex-shrink-0">by</span>
               <input
                 type="number"
                 value={conditionPct}
                 onChange={e => setConditionPct(e.target.value)}
-                min="0.1" max="100" step="0.5"
-                className="flex-1 bg-transparent text-center text-xl font-bold font-mono
-                           outline-none text-text w-16"
+                min="0.1"
+                max="100"
+                step="0.5"
+                className="flex-1 bg-transparent text-center text-xl font-bold
+                           font-mono outline-none text-text w-16"
               />
               <span className="text-xl font-bold text-muted flex-shrink-0">%</span>
             </div>
             <p className="text-xs text-muted text-center">
               Triggers when{' '}
-              <span className="text-text font-semibold">{selectedToken.symbol}</span>{' '}
-              {conditionType === 'price_drops' ? 'drops' : 'rises'}{' '}
-              <span className="text-text font-semibold">{conditionPct || '?'}%</span> in 24h
+              <span className="text-text font-semibold">{selectedToken.symbol}</span>
+              {' '}{conditionType === 'price_drops' ? 'drops' : 'rises'}{' '}
+              <span className="text-text font-semibold">{conditionPct || '?'}%</span>
+              {' '}from your entry price
             </p>
           </div>
 
-          {/* ── Action ── */}
+          {/* Action */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider">THEN Action</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+              THEN Action
+            </label>
             <div className="grid grid-cols-3 gap-2">
               {ACTIONS.map(({ value, label, color }) => (
                 <button
                   key={value}
                   onClick={() => setAction(value)}
-                  className={`px-3 py-2.5 rounded-lg border text-sm font-semibold transition-all
+                  className={`px-3 py-2.5 rounded-lg border text-sm font-semibold
+                             transition-all
                     ${action === value
                       ? color
                       : 'border-border bg-card-2 text-muted hover:border-border/80'}`}
@@ -374,42 +457,54 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
             </div>
           </div>
 
-          {/* ── Amount ── */}
+          {/* Amount */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Amount (SOL)</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Amount (SOL)
+            </label>
             <div className="relative">
               <input
                 type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                min="0.001" step="0.01"
-                className="w-full px-3 py-2.5 pr-14 rounded-lg bg-card-2 border border-border
-                           text-sm font-mono focus:outline-none focus:border-primary/60 transition-colors"
+                min="0.001"
+                step="0.01"
+                className="w-full px-3 py-2.5 pr-14 rounded-lg bg-card-2
+                           border border-border text-sm font-mono
+                           focus:outline-none focus:border-primary/60 transition-colors"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-xs font-mono">SOL</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2
+                               text-muted text-xs font-mono">SOL</span>
             </div>
           </div>
 
-          {/* ── Name ── */}
+          {/* Name */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider">Agent Name</label>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Agent Name
+            </label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={autoName}
               className="w-full px-3 py-2.5 rounded-lg bg-card-2 border border-border
-                         text-sm focus:outline-none focus:border-primary/60 transition-colors"
+                         text-sm focus:outline-none focus:border-primary/60
+                         transition-colors"
             />
           </div>
 
-          {/* ── Summary ── */}
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-muted leading-relaxed">
+          {/* Summary */}
+          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20
+                          text-xs text-muted leading-relaxed">
             <span className="text-primary font-semibold">Agent summary: </span>
-            When <span className="text-text font-semibold">{selectedToken.symbol}</span>{' '}
-            {conditionType === 'price_drops' ? 'drops' : 'rises'}{' '}
-            <span className="text-text font-semibold">{conditionPct || '?'}%</span> →{' '}
-            <span className="text-text font-semibold capitalize">{action}</span>{' '}
+            When{' '}
+            <span className="text-text font-semibold">{selectedToken.symbol}</span>
+            {' '}{conditionType === 'price_drops' ? 'drops' : 'rises'}{' '}
+            <span className="text-text font-semibold">{conditionPct || '?'}%</span>
+            {' '}from entry →{' '}
+            <span className="text-text font-semibold capitalize">{action}</span>
+            {' '}
             <span className="text-text font-semibold">{amount || '?'} SOL</span>
           </div>
         </div>
@@ -418,10 +513,10 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
         <div className="p-5 border-t border-border flex-shrink-0">
           <button
             onClick={handleSubmit}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl
-                       bg-gradient-to-r from-primary to-secondary text-white font-bold
-                       hover:opacity-90 transition-all active:scale-[0.98]
-                       shadow-lg shadow-primary/20"
+            className="w-full flex items-center justify-center gap-2 py-3
+                       rounded-xl bg-gradient-to-r from-primary to-secondary
+                       text-white font-bold hover:opacity-90 transition-all
+                       active:scale-[0.98] shadow-lg shadow-primary/20"
           >
             <Zap className="w-4 h-4" />
             Deploy Agent
@@ -430,4 +525,4 @@ export function CreateAgentModal({ onClose, onCreate }: Props) {
       </div>
     </div>
   );
-      }
+                            }
